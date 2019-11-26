@@ -15,7 +15,7 @@ async def preapare_db(*args, **kwargs) -> asyncpg.pool.Pool:
                                      database=config.DB_NAME, host=config.DB_HOST)
 
     for _class in [AuthorAnnotationsBD, AuthorsBD, BookAnnotationsBD, BooksDB, 
-                   SequenceBD, SequenceNameBD, TablesCreator]:  # type: Type[ConfigurableDB]
+                   SequenceBD, SequenceNameBD, TablesCreator, DownloadDB]:  # type: Type[ConfigurableDB]
         _class.configurate(pool)
 
     await TablesCreator.create_tables()
@@ -43,6 +43,7 @@ class TablesCreator(ConfigurableDB):
     CREATE_BOOK_ANNOTATION_TABLE = open(SQL_FOLDER / "create_book_annotation_table.sql").read().format(config.DB_USER)
     CREATE_AUTHOR_ANNOTATION_TABLE = open(
         SQL_FOLDER / "create_author_annotation_table.sql").read().format(config.DB_USER)
+    CREATE_DOWNLOAD_TABLE = open(SQL_FOLDER / "create_download_table.sql").read().format(config.DB_USER)
 
     @classmethod
     async def create_tables(cls):
@@ -53,6 +54,7 @@ class TablesCreator(ConfigurableDB):
         await cls.pool.execute(cls.CREATE_SEQUENCE_TABLE)
         await cls.pool.execute(cls.CREATE_BOOK_ANNOTATION_TABLE)
         await cls.pool.execute(cls.CREATE_AUTHOR_ANNOTATION_TABLE)
+        await cls.pool.execute(cls.CREATE_DOWNLOAD_TABLE)
 
 
 class BooksDB(ConfigurableDB):
@@ -148,3 +150,16 @@ class AuthorAnnotationsBD(ConfigurableDB):
         async with cls.pool.acquire() as conn:  # type: asyncpg.Connection
             result = (await conn.fetch(cls.AUTHOR_ANNOTATION_BY_ID, author_id))
             return result[0]["json_build_object"] if result else None
+
+
+class DownloadDB(ConfigurableDB):
+    UPDATE = open(SQL_FOLDER / "download_update.sql").read()
+    GET_TOP_N = open(SQL_FOLDER / "download_get_top_n.sql").read()
+
+    @classmethod
+    async def update(cls, book_id: int, user_id: int):
+        await cls.pool.execute(cls.UPDATE, book_id, user_id, date.today())
+
+    @classmethod
+    async def get_top_n(cls, count: int, start_date: date, end_date: date):
+        await cls.pool.execute(cls.GET_TOP_N, count, start_date, end_date)

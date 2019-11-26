@@ -18,7 +18,14 @@ SELECT json_build_object(
                 FROM (
                         SELECT tbook.book_id as id, tbook.title, tbook.lang, tbook.file_type,
                         EXISTS(SELECT * FROM book_annotation 
-                               WHERE book_annotation.book_id = tbook.book_id) as annotation_exists
+                               WHERE book_annotation.book_id = tbook.book_id) as annotation_exists,
+                        (SELECT array_to_json(array_agg(row_to_json(translator)))
+                          FROM (
+                            SELECT author.id, first_name, last_name, middle_name
+                            FROM author
+                                    LEFT JOIN translator tr on author.id = tr.translator_id
+                            WHERE tr.book_id = tbook.book_id ORDER BY tr.pos) translator 
+                        ) as translators
                         FROM author_books as tbook
                         ORDER BY title
                         LIMIT $3 OFFSET $4) book))

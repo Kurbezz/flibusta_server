@@ -1,11 +1,11 @@
 import ujson as json
 from datetime import date
-
 import asyncio
 from aiohttp.web_response import json_response
+from aiohttp import web
 
-from db import *
-from exceptions import *
+from db import BooksDB, AuthorsBD, AuthorAnnotationsBD, BookAnnotationsBD, SequenceBD, SequenceNameBD, preapare_db, DownloadDB
+from config import Config as config
 from utils import get_filename, download, download_image
 
 
@@ -99,7 +99,7 @@ class AuthorHandler:
         if None in [id_, allowed_langs, limit, page]:
             raise web.HTTPBadRequest
         response = await AuthorsBD.by_id(int(id_), json.loads(allowed_langs), int(limit), int(page))
-        return json_response(body=response)
+        return json_response(body=response.encode())
 
     @staticmethod
     async def search(request: web.Request):
@@ -222,6 +222,23 @@ class AuthorAnnotationHandler:
         return result
 
 
+class DownloadCounterHandler:
+    @staticmethod
+    async def update(request: web.Request):
+        book_id = request.match_info.get("book_id", None)
+        user_id = request.match_info.get("user_id", None)
+
+        if book_id is None or user_id is None:
+            raise web.HTTPBadRequest
+
+        await DownloadDB.update(int(book_id), int(user_id))
+        return web.Response()
+
+    @staticmethod
+    async def get_top_n(request: web.Request):
+        pass
+
+
 if __name__ == "__main__":
     import platform
 
@@ -254,7 +271,10 @@ if __name__ == "__main__":
         web.get("/annotation/book/{id}", BookAnnotationHandler.by_id),
         web.get("/annotation/book/image/{id}", BookAnnotationHandler.image),
         web.get("/annotation/author/{id}", AuthorAnnotationHandler.by_id),
-        web.get("/annotation/author/image/{id}", AuthorAnnotationHandler.image)
+        web.get("/annotation/author/image/{id}", AuthorAnnotationHandler.image),
+        web.get("/download_counter/update/{book_id}/{user_id}", DownloadCounterHandler.update),
+        web.get("/download_counter/get_top_n/{n}/{allowed_langs}/{start_date}/{end_date}", 
+                DownloadCounterHandler.get_top_n)
     ))
 
     web.run_app(app, host=config.SERVER_HOST, port=config.SERVER_PORT)

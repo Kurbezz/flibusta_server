@@ -13,6 +13,14 @@ SELECT json_build_object(
                 FROM author
                         LEFT JOIN bookauthor ba ON author.id = ba.author_id
                 WHERE ba.book_id = book.id) author
+           ),
+           'translators', (
+              SELECT array_to_json(array_agg(row_to_json(translator)))
+              FROM (
+                     SELECT author.id, first_name, last_name, middle_name
+                     FROM author
+                            LEFT JOIN translator tr on author.id = tr.translator_id
+                     WHERE tr.book_id = book.id ORDER BY tr.pos) translator 
            )
          ) as json
-FROM book WHERE lang = ANY($1::text[]) ORDER BY random() LIMIT 1;
+FROM book WHERE lang = ANY($1::text[]) AND random() < 0.2 ORDER BY random() LIMIT 1;

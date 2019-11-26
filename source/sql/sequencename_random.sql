@@ -19,5 +19,6 @@ SELECT json_build_object(
                          ) author
                ))
 FROM seqname
-WHERE (SELECT count(*) FROM seq INNER JOIN book b ON b.id = seq.book_id WHERE b.lang = ANY($1::text[])) <> 0
+WHERE (SELECT count(*) FROM seq INNER JOIN book b ON b.id = seq.book_id WHERE b.lang = ANY($1::text[])) <> 0 
+  AND random() < 0.2
 ORDER BY random() LIMIT 1;

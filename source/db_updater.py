@@ -18,6 +18,7 @@ from config import Config
 files = ['lib.libavtor.sql',
          'lib.libbook.sql',
          'lib.libavtorname.sql',
+         'lib.libtranslator.sql',
          'lib.libseqname.sql',
          'lib.libseq.sql',
          'lib.b.annotations.sql',
@@ -63,12 +64,24 @@ async def clean_authors(pool):
         async with conn.cursor() as cursor:
             print("Clean author")
             await cursor.execute(
-                "DELETE FROM temp.libavtorname WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtor);"
+                "DELETE FROM temp.libavtorname WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtor) OR "
+                "AvtorId NOT IN (SELECT TranslatorId FROM temp.libtranslator);"
             )
     await asyncio.gather(
         clean_author_annotations(pool),
-        clean_author_annotations_pics(pool)
+        clean_author_annotations_pics(pool),
+        clean_translators(pool)
     )
+
+
+async def clean_translators(pool):
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            print("Clean translator")
+            await cursor.execute(
+                "DELETE FROM temp.libtranslator WHERE BookId NOT IN (SELECT BookId FROM temp.libbook) OR "
+                "TranslatorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
+            )
 
 
 async def clean_book_authors(pool):
@@ -77,9 +90,6 @@ async def clean_book_authors(pool):
             print("Clean book-author")
             await cursor.execute(
                 "DELETE FROM temp.libavtor WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
-            )
-            await cursor.execute(
-                "DELETE FROM temp.libavtor WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
             )
     await clean_authors(pool)
 
@@ -111,36 +121,48 @@ async def clean_book_annotations(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             print("Clean book annotations")
-            await cursor.execute(
-                "DELETE FROM temp.libbannotations WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
-            )
+            try:
+                await cursor.execute(
+                    "DELETE FROM temp.libbannotations WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
+                )
+            except aiomysql.ProgrammingError as e:
+                print(e)
 
 
 async def clean_book_annotations_pics(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             print("Clean book annotations pics")
-            await cursor.execute(
-                "DELETE FROM temp.libbpics WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
-            )
+            try:
+                await cursor.execute(
+                    "DELETE FROM temp.libbpics WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
+                )
+            except aiomysql.ProgrammingError as e:
+                print(e)
 
 
 async def clean_author_annotations(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             print("Clean author annotations")
-            await cursor.execute(
-                "DELETE FROM temp.libaannotations WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
-            )
+            try:
+                await cursor.execute(
+                    "DELETE FROM temp.libaannotations WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
+                )
+            except aiomysql.ProgrammingError as e:
+                print(e)
 
 
 async def clean_author_annotations_pics(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             print("Clean author annotations pics")
-            await cursor.execute(
-                "DELETE FROM temp.libapics WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
-            )
+            try:
+                await cursor.execute(
+                    "DELETE FROM temp.libapics WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
+                )
+            except aiomysql.ProgrammingError as e:
+                print(e)
 
 
 async def clean(pool):
@@ -192,6 +214,26 @@ async def update_books(mysql_pool, postgres_pool):
     await update_book_annotations(mysql_pool, postgres_pool)
 
     await postgres_pool.execute("REINDEX TABLE book;")
+
+
+async def update_translators(mysql_pool, postgres_pool):
+    while not authors_updated or not books_updated:
+        await asyncio.sleep(.5)
+
+    print("Getting translators...")
+    async with mysql_pool.acquire() as conn:
+        async with conn.cursor() as cursor:
+            await cursor.execute("SELECT BookId, TranslatorId, Pos FROM temp.libtranslator;")
+            result = await cursor.fetchall()
+    print("Translators has get!")
+
+    print("Updating translators...")
+    await postgres_pool.executemany(
+        "INSERT INTO translator (book_id, translator_id, pos) VALUES ($1, $2, $3) "
+        "ON CONFLICT (book_id, translator_id) DO UPDATE SET pos = EXCLUDED.pos",
+        [(r[0], r[1], r[2]) for r in result]
+    )
+    print("Translators updated!")
 
 
 async def update_authors(mysql_pool, postgres_pool):
@@ -287,83 +329,96 @@ async def update_sequence_names(mysql_pool, postgres_pool):
 
 
 async def update_book_annotations(mysql_pool, postgres_pool):
-    print("Getting book annotations...")
-    async with mysql_pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            await cursor.execute("SELECT BookId, Title, Body FROM temp.libbannotations;")
-            result = await cursor.fetchall()
-    print("Book annotations has get!")
+    try:
+        print("Getting book annotations...")
+        async with mysql_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT BookId, Title, Body FROM temp.libbannotations;")
+                result = await cursor.fetchall()
+        print("Book annotations has get!")
 
-    print("Update book annotations...")
-    await postgres_pool.executemany(
-        "INSERT INTO book_annotation (book_id, title, body) VALUES ($1, cast($2 as varchar), cast($3 as varchar)) "
-        "ON CONFLICT (book_id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body",
-        [(r[0], r[1], r[2]) for r in result]
-    )
-    print("Book annotations updated!")
+        print("Update book annotations...")
+        await postgres_pool.executemany(
+            "INSERT INTO book_annotation (book_id, title, body) VALUES ($1, cast($2 as varchar), cast($3 as varchar)) "
+            "ON CONFLICT (book_id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body",
+            [(r[0], r[1], r[2]) for r in result]
+        )
+        print("Book annotations updated!")
+
+        await postgres_pool.execute("REINDEX TABLE book_annotation;")
+    except aiomysql.ProgrammingError as e:
+        print(e)
 
     await update_book_annotations_pics(mysql_pool, postgres_pool)
 
-    await postgres_pool.execute("REINDEX TABLE book_annotation;")
-
 
 async def update_book_annotations_pics(mysql_pool, postgres_pool):
-    print("Getting book annotation pics...")
-    async with mysql_pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            await cursor.execute("SELECT BookId, File FROM temp.libbpics;")
-            result = await cursor.fetchall()
-    print("Book annotation pics has get!")
+    try:
+        print("Getting book annotation pics...")
+        async with mysql_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT BookId, File FROM temp.libbpics;")
+                result = await cursor.fetchall()
+        print("Book annotation pics has get!")
 
-    print("Update book annotations pics...")
-    await postgres_pool.executemany(
-        "UPDATE book_annotation SET file = cast($2 as varchar) WHERE book_id = $1",
-        [(r[0], r[1]) for r in result]
-    )
-    print("Book annotations pics updated!")
+        print("Update book annotations pics...")
+        await postgres_pool.executemany(
+            "UPDATE book_annotation SET file = cast($2 as varchar) WHERE book_id = $1",
+            [(r[0], r[1]) for r in result]
+        )
+        print("Book annotations pics updated!")
+    except aiomysql.ProgrammingError as e:
+        print(e)
 
 
 async def update_author_annotations(mysql_pool, postgres_pool):
-    print("Getting author annotations...")
-    async with mysql_pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            await cursor.execute("SELECT AvtorId, Title, Body FROM temp.libaannotations;")
-            result = await cursor.fetchall()
-    print("Author annotations has get!")
+    try:
+        print("Getting author annotations...")
+        async with mysql_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT AvtorId, Title, Body FROM temp.libaannotations;")
+                result = await cursor.fetchall()
+        print("Author annotations has get!")
 
-    print("Update author annotations...")
-    await postgres_pool.executemany(
-        "INSERT INTO author_annotation (author_id, title, body) VALUES ($1, cast($2 as varchar), cast($3 as varchar)) "
-        "ON CONFLICT (author_id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body",
-        [(r[0], r[1], r[2]) for r in result]
-    )
-    print("Author annotations updated!")
+        print("Update author annotations...")
+        await postgres_pool.executemany(
+            "INSERT INTO author_annotation (author_id, title, body) VALUES ($1, cast($2 as varchar), cast($3 as varchar)) "
+            "ON CONFLICT (author_id) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body",
+            [(r[0], r[1], r[2]) for r in result]
+        )
+        print("Author annotations updated!")
 
-    await update_author_annotations_pics(mysql_pool, postgres_pool)
+        await update_author_annotations_pics(mysql_pool, postgres_pool)
+    except aiomysql.ProgrammingError as e:
+        print(e)
 
     await postgres_pool.execute("REINDEX TABLE author_annotation;")
 
 
 async def update_author_annotations_pics(mysql_pool, postgres_pool):
-    print("Getting author annotation pics...")
-    async with mysql_pool.acquire() as conn:
-        async with conn.cursor() as cursor:
-            await cursor.execute("SELECT AvtorId, File FROM temp.libapics;")
-            result = await cursor.fetchall()
-    print("Author annotations pics has get!")
+    try:
+        print("Getting author annotation pics...")
+        async with mysql_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute("SELECT AvtorId, File FROM temp.libapics;")
+                result = await cursor.fetchall()
+        print("Author annotations pics has get!")
 
-    print("Update author annotations pics...")
-    await postgres_pool.executemany(
-        "UPDATE author_annotation SET file = cast($2 as varchar) WHERE author_id = $1",
-        [(r[0], r[1]) for r in result]
-    )
-    print("Author annotations pics updated!")
+        print("Update author annotations pics...")
+        await postgres_pool.executemany(
+            "UPDATE author_annotation SET file = cast($2 as varchar) WHERE author_id = $1",
+            [(r[0], r[1]) for r in result]
+        )
+        print("Author annotations pics updated!")
+    except aiomysql.ProgrammingError as e:
+        print(e)
 
 
 async def update(mysql_pool, postgres_pool):
     await asyncio.gather(
         update_books(mysql_pool, postgres_pool),
         update_authors(mysql_pool, postgres_pool),
+        update_translators(mysql_pool, postgres_pool),
         update_sequence_names(mysql_pool, postgres_pool),
         update_book_author(mysql_pool, postgres_pool),
         update_sequence(mysql_pool, postgres_pool)
@@ -380,6 +435,9 @@ async def delete_books(postgres_pool: asyncpg.pool.Pool, books_ids_to_delete: Se
         ),
         postgres_pool.executemany(
             "DELETE FROM book_annotation WHERE book_id = $1", [(x, ) for x in books_ids_to_delete]
+        ),
+        postgres_pool.executemany(
+            "DELETE FROM translator WHERE book_id = $1", [(x, ) for x in books_ids_to_delete]
         )
     )
     await postgres_pool.executemany(
@@ -405,6 +463,9 @@ async def delete_authors(postgres_pool: asyncpg.pool.Pool, authors_ids_to_delete
         ),
         postgres_pool.executemany(
             "DELETE FROM author_annotation WHERE author_id = $1", [(x, ) for x in authors_ids_to_delete]
+        ),
+        postgres_pool.executemany(
+            "DELETE FROM translator WHERE translator_id = $1", [(x, ) for x in authors_ids_to_delete]
         )
     )
     await postgres_pool.executemany(
@@ -512,4 +573,3 @@ if __name__ == "__main__":
     asyncio.run(main())
 
     os.system("service mysql stop")
-
