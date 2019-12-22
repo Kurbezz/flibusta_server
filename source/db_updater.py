@@ -60,17 +60,19 @@ async def processing_file(file_: str):
 
 
 async def clean_authors(pool):
+    await clean_translators(pool)
+
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             print("Clean author")
             await cursor.execute(
-                "DELETE FROM temp.libavtorname WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtor) OR "
+                "DELETE FROM temp.libavtorname WHERE AvtorId NOT IN (SELECT AvtorId FROM temp.libavtor) AND "
                 "AvtorId NOT IN (SELECT TranslatorId FROM temp.libtranslator);"
             )
+
     await asyncio.gather(
         clean_author_annotations(pool),
-        clean_author_annotations_pics(pool),
-        clean_translators(pool)
+        clean_author_annotations_pics(pool)
     )
 
 
@@ -79,8 +81,7 @@ async def clean_translators(pool):
         async with conn.cursor() as cursor:
             print("Clean translator")
             await cursor.execute(
-                "DELETE FROM temp.libtranslator WHERE BookId NOT IN (SELECT BookId FROM temp.libbook) OR "
-                "TranslatorId NOT IN (SELECT AvtorId FROM temp.libavtorname);"
+                "DELETE FROM temp.libtranslator WHERE BookId NOT IN (SELECT BookId FROM temp.libbook);"
             )
 
 
@@ -258,6 +259,7 @@ async def update_authors(mysql_pool, postgres_pool):
 
     global authors_updated
     authors_updated = True
+
     await update_author_annotations(mysql_pool, postgres_pool)
 
     await postgres_pool.execute("REINDEX TABLE author;")
@@ -559,10 +561,8 @@ async def main():
 
     await clean(mysql_pool)
 
-    await asyncio.gather(
-        update(mysql_pool, postgres_pool),
-        clean_postgres(mysql_pool, postgres_pool)
-    )
+    await update(mysql_pool, postgres_pool)
+    await clean_postgres(mysql_pool, postgres_pool)
 
 
 if __name__ == "__main__":
