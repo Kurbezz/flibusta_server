@@ -14,6 +14,8 @@ import uvloop
 
 from config import Config
 
+from db import preapare_db
+
 
 files = ['lib.libavtor.sql',
          'lib.libbook.sql',
@@ -558,6 +560,8 @@ async def main():
         min_size=10,
         max_size=25
     )
+
+    await preapare_db()
 
     await clean(mysql_pool)
 
