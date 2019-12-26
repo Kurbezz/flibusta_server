@@ -108,4 +108,7 @@ venv.bak/
 .vscode/
 
 # db
-./databases/*.sql
+databases/
+
+# logs
+logs/
