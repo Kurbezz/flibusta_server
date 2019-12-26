@@ -1,7 +1,9 @@
 WITH filtered_seqnames AS (
        SELECT * FROM seqname, plainto_tsquery($1) f_query
-       WHERE EXISTS (SELECT * FROM seq INNER JOIN book b ON seq.book_id = b.id AND lang = ANY($2::text[]))
-              AND search_content @@ f_query
+       WHERE EXISTS (
+              SELECT * FROM seq INNER JOIN book b ON seq.book_id = b.id 
+                     WHERE lang = ANY($2::text[]) AND seq.seq_id = seqname.seq_id)
+       AND search_content @@ f_query
 )
 SELECT json_build_object(
        'count', (SELECT COUNT(*) FROM filtered_seqnames), 
