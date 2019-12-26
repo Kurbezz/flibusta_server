@@ -10,6 +10,10 @@
 ### 2. Установить MySQL
 2.1 Создать пользователя и бд
 
+### 3. Настроить Nginx
+3.1 Установить Nginx
+3.2 Настроить по [шаблону](https://github.com/Kurbezz/nginx_config_examples/blob/master/examples/flibusta_server.conf)
+
 ## Подготовка к работе
 1. Запусть db_updater.py передавая конфигурацию в аргументах
 
