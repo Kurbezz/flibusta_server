@@ -8,13 +8,40 @@ import platform
 import pymysql
 import aiomysql
 import aiohttp
-import aiofiles
 from aioify import aioify
 import asyncpg
 
-from config import Config
-
 from db import preapare_db
+
+from typing import Optional
+import os
+
+
+class Config:
+    DB_NAME: str
+    DB_HOST: str
+    DB_USER: str
+    DB_PASSWORD: str
+
+    TEMP_DB_NAME: str
+    TEMP_DB_HOST: str
+    TEMP_DB_USER: str
+    TEMP_DB_PASSWORD: str
+
+    @classmethod
+    def configure(cls):
+        cls.DB_NAME = os.environ.get('DB_NAME', 'flibusta')
+        cls.DB_HOST = os.environ.get('DB_HOST', 'localhost')
+        cls.DB_USER = os.environ.get('DB_USER', 'flibusta')
+        cls.DB_PASSWORD = os.environ['DB_PASSWORD']
+
+        cls.TEMP_DB_NAME = os.environ.get("TEMP_DB_NAME", "temp")
+        cls.TEMP_DB_HOST = os.environ.get("TEMP_DB_HOST", "localhost")
+        cls.TEMP_DB_USER = os.environ.get("TEMP_DB_USER", "root")
+        cls.TEMP_DB_PASSWORD = os.environ["TEMP_DB_PASSWORD"]
+
+
+Config.configure()
 
 
 files = ['lib.libavtor.sql',
@@ -564,8 +591,4 @@ if __name__ == "__main__":
         except ImportError:
             print("Install uvloop for best speed!")
 
-    os.system("service mysql start")
-
     asyncio.run(main())
-
-    os.system("service mysql stop")

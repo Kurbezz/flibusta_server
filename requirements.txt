@@ -1,8 +1,8 @@
 aiohttp
 asyncpg
-pymysql
-requests
+pymysql==0.9.2
+aiomysql
 transliterate
+uvloop
 ujson
 aioify
-fire
