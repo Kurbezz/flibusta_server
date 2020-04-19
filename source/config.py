@@ -20,10 +20,6 @@ class Config:
 
     TOR_PROXIES: str
 
-    APP_ID: Optional[int]
-    API_HASH: Optional[str]
-    CLIENT_NAME: Optional[str]
-
     FLIBUSTA_CHANNEL_HOST: str
     FLIBUSTA_CHANNEL_PORT: int
 
@@ -41,10 +37,6 @@ class Config:
         cls.TEMP_DB_HOST = os.environ.get("TEMP_DB_HOST", "localhost")
         cls.TEMP_DB_USER = os.environ.get("TEMP_DB_USER", "root")
         cls.TEMP_DB_PASSWORD = os.environ["TEMP_DB_PASSWORD"]
-
-        cls.APP_ID = os.environ.get('APP_ID', None)
-        cls.API_HASH = os.environ.get('API_HASH', None)
-        cls.CLIENT_NAME = os.environ.get('CLIENT_NAME', 'telegram_client')
 
         cls.FLIBUSTA_CHANNEL_HOST = os.environ.get('FLIBUSTA_CHANNEL_HOST', 'localhost')
         cls.FLIBUSTA_CHANNEL_PORT = os.environ.get('FLIBUSTA_CHANNEL_PORT', 7080)
