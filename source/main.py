@@ -4,9 +4,10 @@ import asyncio
 from aiohttp.web_response import json_response
 from aiohttp import web
 
-from db import BooksDB, AuthorsBD, AuthorAnnotationsBD, BookAnnotationsBD, SequenceBD, SequenceNameBD, preapare_db, DownloadDB
+from db import BooksDB, AuthorsBD, AuthorAnnotationsBD, BookAnnotationsBD, SequenceBD, SequenceNameBD, preapare_db
 from config import Config as config
 from utils import get_filename, download, download_image
+from flibusta_channel_client import FlibustaChannelClient
 
 
 class BookHandler:
@@ -46,7 +47,6 @@ class BookHandler:
 
     @staticmethod
     async def download(request: web.Request):
-        # ToDO: try download from telegram if book exists in channel
         book_id = request.match_info.get("id", None)
         file_type = request.match_info.get("type", None)
         if book_id is None and file_type is None:
@@ -57,9 +57,14 @@ class BookHandler:
         if not book:
             raise web.HTTPNoContent
 
-        book_bytes = await download(book_id, file_type)
+        book_bytes = await FlibustaChannelClient.download(book_id, file_type)
+        
+        if book_bytes is None:
+            book_bytes = await download(book_id, file_type)
+            
         if not book_bytes:
             raise web.HTTPNoContent
+
         response = web.Response(body=book_bytes)
         filename = await get_filename(book, file_type)
         response.headers.add("Content-Disposition",
@@ -222,23 +227,6 @@ class AuthorAnnotationHandler:
         return result
 
 
-class DownloadCounterHandler:
-    @staticmethod
-    async def update(request: web.Request):
-        book_id = request.match_info.get("book_id", None)
-        user_id = request.match_info.get("user_id", None)
-
-        if book_id is None or user_id is None:
-            raise web.HTTPBadRequest
-
-        await DownloadDB.update(int(book_id), int(user_id))
-        return web.Response()
-
-    @staticmethod
-    async def get_top_n(request: web.Request):
-        pass
-
-
 if __name__ == "__main__":
     import platform
 
@@ -272,9 +260,6 @@ if __name__ == "__main__":
         web.get("/annotation/book/image/{id}", BookAnnotationHandler.image),
         web.get("/annotation/author/{id}", AuthorAnnotationHandler.by_id),
         web.get("/annotation/author/image/{id}", AuthorAnnotationHandler.image),
-        web.get("/download_counter/update/{book_id}/{user_id}", DownloadCounterHandler.update),
-        web.get("/download_counter/get_top_n/{n}/{allowed_langs}/{start_date}/{end_date}", 
-                DownloadCounterHandler.get_top_n)
     ))
 
     web.run_app(app, host=config.SERVER_HOST, port=config.SERVER_PORT)
