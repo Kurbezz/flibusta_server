@@ -3,6 +3,7 @@ from typing import Set
 import asyncio
 import gzip
 import os
+import platform
 
 import pymysql
 import aiomysql
@@ -10,7 +11,6 @@ import aiohttp
 import aiofiles
 from aioify import aioify
 import asyncpg
-import uvloop
 
 from config import Config
 
@@ -42,23 +42,9 @@ async def run(cmd):
 
 
 async def processing_file(file_: str):
-    print(f"Download {file_}...")
-    async with aiohttp.ClientSession() as session:
-        async with session.get('http://flibusta.is/sql/' + file_ + '.gz') as resp:
-            data = await decompress(await resp.content.read())
-
-            if not os.path.exists('../databases/'):
-                os.mkdir('../databases/')
-
-            async with aiofiles.open('../databases/' + file_, "wb") as f_out:
-                await f_out.write(data)
-            
-            del data
-    print(f"{file_} downloaded!")
-
-    print(f"Import {file_}...")
-    await run(f"mysql -u{Config.TEMP_DB_USER} -p\"{Config.TEMP_DB_PASSWORD}\" {Config.TEMP_DB_NAME} < ../databases/{file_}")
-    print(f"{file_} imported!")
+    print(f"Process file {file_}...")
+    await run(f"wget -O - http://flibusta.is/sql/{file_}.gz | gunzip | mysql -u{Config.TEMP_DB_USER} -p\"{Config.TEMP_DB_PASSWORD}\" {Config.TEMP_DB_NAME}")
+    print(f"{file_} processed!")
 
 
 async def clean_authors(pool):
@@ -525,7 +511,7 @@ async def main():
         user=Config.TEMP_DB_USER,
         password=Config.TEMP_DB_PASSWORD,
         loop=loop
-        )
+    )
 
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
@@ -570,7 +556,13 @@ async def main():
 
 
 if __name__ == "__main__":
-    uvloop.install()
+    if platform.system() == "Linux":
+        try:
+            import uvloop
+
+            uvloop.install()
+        except ImportError:
+            print("Install uvloop for best speed!")
 
     os.system("service mysql start")
 
