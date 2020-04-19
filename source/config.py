@@ -45,10 +45,5 @@ class Config:
 
         cls.TOR_PROXIES = os.environ.get('TOR_PROXIES', "http://localhost:8118")
 
-    @property
-    @classmethod
-    def flibusta_channel_ready(cls):
-        return cls.APP_ID is not None and cls.API_HASH is not None
-
 
 Config.configure()
