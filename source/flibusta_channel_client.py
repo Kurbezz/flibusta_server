@@ -13,6 +13,9 @@ class FlibustaChannelClient:
                 "GET",
                 f"http://{Config.FLIBUSTA_CHANNEL_HOST}:{Config.FLIBUSTA_CHANNEL_PORT}/download/{book_id}/{file_type}"
             ) as response:
-                return await response.content.read()
+                if response.status == 200:
+                    return await response.content.read()
+                else:
+                    return None
         except ClientConnectionError:
             return None
