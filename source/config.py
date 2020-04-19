@@ -1,4 +1,5 @@
-import fire
+from typing import Optional
+import os
 
 
 class Config:
@@ -19,30 +20,43 @@ class Config:
 
     TOR_PROXIES: str
 
+    APP_ID: Optional[int]
+    API_HASH: Optional[str]
+    CLIENT_NAME: Optional[str]
+
+    FLIBUSTA_CHANNEL_HOST: str
+    FLIBUSTA_CHANNEL_PORT: int
+
     @classmethod
-    def configure(cls, db_password: str, temp_db_password: str,
-                  db_name: str = "flibusta", db_host: str = "localhost",
-                  db_user: str = "flibusta",
-                  temp_db_name = "temp", temp_db_host = "localhost",
-                  temp_db_user = "root",
-                  server_host: str = "localhost", server_port: int = 7770,
-                  tor_proxies: str = "http://localhost:8118"):
-        cls.SERVER_HOST = server_host
-        cls.SERVER_PORT = server_port
+    def configure(cls):
+        cls.SERVER_HOST = os.environ.get('SERVER_HOST', 'localhost')
+        cls.SERVER_PORT = os.environ.get('SERVER_PORT', 7770)
 
-        cls.DB_NAME = db_name
-        cls.DB_HOST = db_host
-        cls.DB_USER = db_user
-        cls.DB_PASSWORD = db_password
+        cls.DB_NAME = os.environ.get('DB_NAME', 'flibusta')
+        cls.DB_HOST = os.environ.get('DB_HOST', 'localhost')
+        cls.DB_USER = os.environ.get('DB_USER', 'flibusta')
+        cls.DB_PASSWORD = os.environ['DB_PASSWORD']
 
-        cls.TEMP_DB_NAME = temp_db_name
-        cls.TEMP_DB_HOST = temp_db_host
-        cls.TEMP_DB_USER = temp_db_user
-        cls.TEMP_DB_PASSWORD = str(temp_db_password)
+        cls.TEMP_DB_NAME = os.environ.get("TEMP_DB_NAME", "temp")
+        cls.TEMP_DB_HOST = os.environ.get("TEMP_DB_HOST", "localhost")
+        cls.TEMP_DB_USER = os.environ.get("TEMP_DB_USER", "root")
+        cls.TEMP_DB_PASSWORD = os.environ["TEMP_DB_PASSWORD"]
+
+        cls.APP_ID = os.environ.get('APP_ID', None)
+        cls.API_HASH = os.environ.get('API_HASH', None)
+        cls.CLIENT_NAME = os.environ.get('CLIENT_NAME', 'telegram_client')
+
+        cls.FLIBUSTA_CHANNEL_HOST = os.environ.get('FLIBUSTA_CHANNEL_HOST', 'localhost')
+        cls.FLIBUSTA_CHANNEL_PORT = os.environ.get('FLIBUSTA_CHANNEL_PORT', 7080)
 
         cls.DSN = f"postgresql://{cls.DB_HOST}:5432/{cls.DB_USER}"
 
-        cls.TOR_PROXIES = tor_proxies
+        cls.TOR_PROXIES = os.environ.get('TOR_PROXIES', "http://localhost:8118")
+
+    @property
+    @classmethod
+    def flibusta_channel_ready(cls):
+        return cls.APP_ID is not None and cls.API_HASH is not None
 
 
-fire.Fire(Config.configure)
+Config.configure()
