@@ -30,6 +30,7 @@ class Config:
 
         cls.DB_NAME = os.environ.get('DB_NAME', 'flibusta')
         cls.DB_HOST = os.environ.get('DB_HOST', 'localhost')
+        cls.DB_PORT = os.environ.get('DB_PORT', 5432)
         cls.DB_USER = os.environ.get('DB_USER', 'flibusta')
         cls.DB_PASSWORD = os.environ['DB_PASSWORD']
 
