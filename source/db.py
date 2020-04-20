@@ -12,7 +12,8 @@ from config import Config as config
 
 async def preapare_db(*args, **kwargs) -> asyncpg.pool.Pool:
     pool = await asyncpg.create_pool(user=config.DB_USER, password=config.DB_PASSWORD,
-                                     database=config.DB_NAME, host=config.DB_HOST)
+                                     database=config.DB_NAME, host=config.DB_HOST,
+                                     port=config.DB_PORT)
 
     for _class in [AuthorAnnotationsBD, AuthorsBD, BookAnnotationsBD, BooksDB, 
                    SequenceBD, SequenceNameBD, TablesCreator]:  # type: Type[ConfigurableDB]

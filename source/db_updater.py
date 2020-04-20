@@ -36,7 +36,7 @@ class Config:
         cls.DB_PASSWORD = os.environ['DB_PASSWORD']
 
         cls.TEMP_DB_NAME = os.environ.get("TEMP_DB_NAME", "temp")
-        cls.TEMP_DB_HOST = os.environ.get("TEMP_DB_HOST", "localhost")
+        cls.TEMP_DB_HOST = os.environ.get("TEMP_DB_HOST", "127.0.0.1")
         cls.TEMP_DB_USER = os.environ.get("TEMP_DB_USER", "root")
         cls.TEMP_DB_PASSWORD = os.environ["TEMP_DB_PASSWORD"]
 
@@ -65,12 +65,12 @@ async def run(cmd):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE)
 
-    await proc.communicate()
+    stdout, stderr = await proc.communicate()
 
 
 async def processing_file(file_: str):
     print(f"Process file {file_}...")
-    await run(f"wget -O - http://flibusta.is/sql/{file_}.gz | gunzip | mysql -u{Config.TEMP_DB_USER} -p\"{Config.TEMP_DB_PASSWORD}\" {Config.TEMP_DB_NAME}")
+    await run(f"wget -O - http://flibusta.is/sql/{file_}.gz | gunzip | mysql -h {Config.TEMP_DB_HOST} -u {Config.TEMP_DB_USER} -p\"{Config.TEMP_DB_PASSWORD}\" {Config.TEMP_DB_NAME}")
     print(f"{file_} processed!")
 
 
@@ -550,6 +550,7 @@ async def main():
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute("CREATE DATABASE temp;")
+            print("Create temp database...")
 
     pool.close()
     await pool.wait_closed()
