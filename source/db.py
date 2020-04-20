@@ -44,11 +44,13 @@ class TablesCreator(ConfigurableDB):
     CREATE_BOOK_ANNOTATION_TABLE = open(SQL_FOLDER / "create_book_annotation_table.sql").read().format(config.DB_USER)
     CREATE_AUTHOR_ANNOTATION_TABLE = open(
         SQL_FOLDER / "create_author_annotation_table.sql").read().format(config.DB_USER)
+    CREATE_TRANSLATOR_TABLE = open(SQL_FOLDER / "create_translator_table.sql").read().format(config.DB_USER)
 
     @classmethod
     async def create_tables(cls):
         await cls.pool.execute(cls.CREATE_BOOK_TABLE)
         await cls.pool.execute(cls.CREATE_AUTHOR_TABLE)
+        await cls.pool.execute(cls.CREATE_TRANSLATOR_TABLE)
         await cls.pool.execute(cls.CREATE_BOOK_AUTHOR_TABLE)
         await cls.pool.execute(cls.CREATE_SEQUENCE_NAME_TABLE)
         await cls.pool.execute(cls.CREATE_SEQUENCE_TABLE)
