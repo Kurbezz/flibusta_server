@@ -198,7 +198,7 @@ async def clean(pool):
 
 
 def remove_wrong_ch(s: str):
-        return s.replace(";", "").replace("\n", " ")
+    return s.replace(";", "").replace("\n", " ").replace('ё', 'е')
 
 def remove_dots(s: str):
     return s.replace('.', '')
