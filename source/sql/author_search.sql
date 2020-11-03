@@ -1,11 +1,13 @@
 WITH filtered_authors AS (
-  SELECT *
-  FROM author, plainto_tsquery($1) f_query
+  SELECT *, 
+    similarity((last_name || ' ' || first_name || ' ' || middle_name), $1) as sml 
+  FROM author
   WHERE EXISTS (SELECT *
     FROM bookauthor
             RIGHT JOIN book ON bookauthor.book_id = book.id
     WHERE book.lang = ANY ($2::text[])
-      AND bookauthor.author_id = author.id) AND author.search_content @@ f_query
+      AND bookauthor.author_id = author.id) 
+    AND (last_name || ' ' || first_name || ' ' || middle_name) % $1
 )
 SELECT json_build_object(
   'count', (SELECT COUNT(*) FROM filtered_authors),
@@ -20,11 +22,11 @@ SELECT json_build_object(
                       SELECT * FROM author_annotation WHERE author_annotation.author_id = author.id
                     )
         )
-        from filtered_authors as author, plainto_tsquery($1) s_query
-        order by ts_rank(author.search_content, s_query) DESC,
-                  (select count(*)
-                  from bookauthor
-                  where bookauthor.author_id = author.id) DESC, author.id
+        FROM filtered_authors AS author
+        ORDER BY author.sml DESC,
+                  (SELECT count(*)
+                   FROM bookauthor
+                   WHERE bookauthor.author_id = author.id) DESC, author.id
         LIMIT $3 OFFSET $4) j
   )
-) as json
+) AS json;

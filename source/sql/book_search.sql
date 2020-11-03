@@ -31,4 +31,4 @@ SELECT json_build_object(
        ORDER BY book.sml DESC, book.title
        LIMIT $3 OFFSET $4) j
     )
-) as json;
+) AS json;

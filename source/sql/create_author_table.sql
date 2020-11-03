@@ -9,4 +9,5 @@ CREATE TABLE IF NOT EXISTS author
 );
 ALTER TABLE author
   OWNER TO {};
-CREATE INDEX IF NOT EXISTS author_search_content ON author (search_content);
+CREATE INDEX IF NOT EXISTS author_search_content2 ON author 
+  USING GIN ((last_name || ' ' || first_name || ' ' || middle_name) gin_trgm_ops);

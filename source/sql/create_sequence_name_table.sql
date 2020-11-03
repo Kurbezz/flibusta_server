@@ -7,4 +7,4 @@ CREATE TABLE IF NOT EXISTS seqname
 );
 ALTER TABLE seqname
   OWNER TO {};
-CREATE INDEX IF NOT EXISTS seqname_search_content ON seqname (search_content);
+CREATE INDEX IF NOT EXISTS seqname_search_content2 ON seqname USING GIN (name gin_trgm_ops);
