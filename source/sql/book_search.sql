@@ -27,7 +27,7 @@ SELECT json_build_object(
                                   LEFT JOIN translator tr on author.id = tr.translator_id
                           WHERE tr.book_id = book.id ORDER BY tr.pos) translator 
                   ))
-       FROM filtered_books AS book,
+       FROM filtered_books AS book
        ORDER BY book.sml DESC, book.title
        LIMIT $3 OFFSET $4) j
     )
