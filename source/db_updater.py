@@ -197,6 +197,13 @@ async def clean(pool):
     )
 
 
+async def reindex(pool):
+    async with pool.acquire() as conn:
+        async with conn.curson() as cursor:
+            print("Reindex")
+            await cursor.execute(f"REINDEX DATABASE {Config.DB_NAME};")
+
+
 def remove_wrong_ch(s: str):
     return s.replace(";", "").replace("\n", " ").replace('ё', 'е')
 
@@ -581,6 +588,8 @@ async def main():
 
     await update(mysql_pool, postgres_pool)
     await clean_postgres(mysql_pool, postgres_pool)
+    
+    await reindex(postgres_pool)
 
 
 if __name__ == "__main__":
