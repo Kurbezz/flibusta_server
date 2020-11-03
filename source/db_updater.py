@@ -198,10 +198,8 @@ async def clean(pool):
 
 
 async def reindex(pool):
-    async with pool.acquire() as conn:
-        async with conn.curson() as cursor:
-            print("Reindex")
-            await cursor.execute(f"REINDEX DATABASE {Config.DB_NAME};")
+    print("Reindex")
+    await pool.execute(f"REINDEX DATABASE {Config.DB_NAME};")
 
 
 def remove_wrong_ch(s: str):
