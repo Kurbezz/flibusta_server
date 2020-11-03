@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS book
   lang           VARCHAR(2)   NOT NULL,
   file_type      VARCHAR(4)   NOT NULL,
   uploaded       DATE         NOT NULL DEFAULT CURRENT_DATE,
-  search_content tsvector     NOT NULL
+  search_content tsvector     NOT NULL,
 );
 ALTER TABLE book
   OWNER TO {};
-CREATE INDEX IF NOT EXISTS book_search_content ON book (search_content);
+CREATE INDEX IF NOT EXISTS book_search_content2 ON book USING GIN (title gin_trgm_ops);

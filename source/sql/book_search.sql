@@ -1,6 +1,6 @@
 WITH filtered_books AS ( 
-  SELECT * FROM book, plainto_tsquery($2) f_query
-  WHERE lang = ANY ($1::text[]) AND book.search_content @@ f_query
+  SELECT *, similarity(title, $2) as sml FROM book
+  WHERE lang = ANY ($1::text[]) AND book.title % $2
 )
 SELECT json_build_object(
     'count', ( SELECT COUNT(*) FROM filtered_books), 
@@ -27,9 +27,8 @@ SELECT json_build_object(
                                   LEFT JOIN translator tr on author.id = tr.translator_id
                           WHERE tr.book_id = book.id ORDER BY tr.pos) translator 
                   ))
-       FROM filtered_books AS book, plainto_tsquery($2) s_query
-       ORDER BY ts_rank_cd(book.search_content, s_query) DESC,
-                ABS(LENGTH(book.title) - LENGTH($2)), book.title
+       FROM filtered_books AS book,
+       ORDER BY book.sml DESC, book.title
        LIMIT $3 OFFSET $4) j
     )
 ) as json;
