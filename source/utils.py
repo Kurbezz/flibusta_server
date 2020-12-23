@@ -60,6 +60,8 @@ def zip_file(filename, content):
     for zfile in zip_file.filelist:
         zfile.create_system = 0
 
+    zip_file.close()
+
     buffer.seek(0)
 
     return buffer.read()
