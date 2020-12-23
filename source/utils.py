@@ -52,6 +52,19 @@ def unzip(file_bytes: bytes, file_type: str):
     raise FileNotFoundError
 
 
+def zip_file(filename, content):
+    buffer = io.BytesIO()
+    zip_file = zipfile.ZipFile(buffer, 'w', zipfile.ZIP_BZIP2, False)
+    zip_file.writestr(filename, content)
+
+    for zfile in zip_file.filelist:
+        zfile.create_system = 0
+
+    buffer.seek(0)
+
+    return buffer.read()
+
+
 async def download(book_id: int, file_type: str, type_:int=3, retry:int=3):
     # type 0: flibustahezeous3.onion
     # type 1: flibusta.appspot.com

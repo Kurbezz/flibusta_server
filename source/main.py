@@ -4,9 +4,11 @@ import asyncio
 from aiohttp.web_response import json_response
 from aiohttp import web
 
-from db import BooksDB, AuthorsBD, AuthorAnnotationsBD, BookAnnotationsBD, SequenceBD, SequenceNameBD, preapare_db
+from db import BooksDB, AuthorsBD, AuthorAnnotationsBD, BookAnnotationsBD, \
+    SequenceBD, SequenceNameBD, preapare_db
 from config import Config as config
-from utils import get_filename, download, download_image
+from utils import get_filename, download, download_image, \
+    process_pool_executor, zip_file
 from flibusta_channel_client import FlibustaChannelClient
 
 
@@ -49,6 +51,13 @@ class BookHandler:
     async def download(request: web.Request):
         book_id = request.match_info.get("id", None)
         file_type = request.match_info.get("type", None)
+
+        need_zip = False
+
+        if file_type == 'fb2+zip':
+            need_zip = True
+            file_type = 'fb2'
+
         if book_id is None and file_type is None:
             raise web.HTTPBadRequest
 
@@ -58,15 +67,26 @@ class BookHandler:
             raise web.HTTPNoContent
 
         book_bytes = await FlibustaChannelClient.download(book_id, file_type)
-        
+
         if book_bytes is None:
             book_bytes = await download(book_id, file_type)
-            
+
         if not book_bytes:
             raise web.HTTPNoContent
 
-        response = web.Response(body=book_bytes)
         filename = await get_filename(book, file_type)
+
+        if need_zip:
+            book_bytes = await asyncio.get_event_loop() \
+                .run_in_executor(
+                    process_pool_executor,
+                    zip_file,
+                    filename,
+                    book_bytes
+            )
+            filename += '.zip'
+
+        response = web.Response(body=book_bytes)
         response.headers.add("Content-Disposition",
                              f"attachment; filename={filename}")
         return response
@@ -87,7 +107,7 @@ class BookHandler:
         except ValueError:
             raise web.HTTPBadRequest
 
-        response = await BooksDB.update_log_range(request_start_date, request_end_date, 
+        response = await BooksDB.update_log_range(request_start_date, request_end_date,
                                                   json.loads(allowed_langs), int(limit), int(page))
         if not response:
             raise web.HTTPNoContent
@@ -245,21 +265,27 @@ if __name__ == "__main__":
 
     app.add_routes((
         web.get("/book/{id}", BookHandler.by_id),
-        web.get("/book/search/{allowed_langs}/{limit}/{page}/{query}", BookHandler.search),
+        web.get(
+            "/book/search/{allowed_langs}/{limit}/{page}/{query}", BookHandler.search),
         web.get("/book/download/{id}/{type}", BookHandler.download),
         web.get("/book/random/{allowed_langs}", BookHandler.random),
-        web.get("/book/update_log_range/{start_date}/{end_date}/{allowed_langs}/{limit}/{page}", 
+        web.get("/book/update_log_range/{start_date}/{end_date}/{allowed_langs}/{limit}/{page}",
                 BookHandler.update_log_range),
-        web.get("/author/search/{allowed_langs}/{limit}/{page}/{query}", AuthorHandler.search),
-        web.get("/author/{id}/{allowed_langs}/{limit}/{page}", AuthorHandler.by_id),
+        web.get(
+            "/author/search/{allowed_langs}/{limit}/{page}/{query}", AuthorHandler.search),
+        web.get("/author/{id}/{allowed_langs}/{limit}/{page}",
+                AuthorHandler.by_id),
         web.get("/author/random/{allowed_langs}", AuthorHandler.random),
-        web.get("/sequence/{id}/{allowed_langs}/{limit}/{page}", SequenceHandler.by_id),
-        web.get("/sequence/search/{allowed_langs}/{limit}/{page}/{query}", SequenceHandler.search),
+        web.get("/sequence/{id}/{allowed_langs}/{limit}/{page}",
+                SequenceHandler.by_id),
+        web.get(
+            "/sequence/search/{allowed_langs}/{limit}/{page}/{query}", SequenceHandler.search),
         web.get("/sequence/random/{allowed_langs}", SequenceHandler.random),
         web.get("/annotation/book/{id}", BookAnnotationHandler.by_id),
         web.get("/annotation/book/image/{id}", BookAnnotationHandler.image),
         web.get("/annotation/author/{id}", AuthorAnnotationHandler.by_id),
-        web.get("/annotation/author/image/{id}", AuthorAnnotationHandler.image),
+        web.get("/annotation/author/image/{id}",
+                AuthorAnnotationHandler.image),
     ))
 
     web.run_app(app, host=config.SERVER_HOST, port=config.SERVER_PORT)
