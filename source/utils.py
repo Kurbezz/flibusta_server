@@ -54,7 +54,7 @@ def unzip(file_bytes: bytes, file_type: str):
 
 def zip_file(filename, content):
     buffer = io.BytesIO()
-    zip_file = zipfile.ZipFile(buffer, 'w', zipfile.ZIP_BZIP2, False)
+    zip_file = zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED, False, 9)
     zip_file.writestr(filename, content)
 
     for zfile in zip_file.filelist:
